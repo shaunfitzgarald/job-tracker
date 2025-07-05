@@ -254,6 +254,8 @@ const ApplicationForm = ({ onSubmit, initialData = null }) => {
                 onChange={handleChange}
                 label="Application Status"
               >
+                <MenuItem value="Not Applied Yet">Not Applied Yet</MenuItem>
+                <MenuItem value="Application Started">Application Started</MenuItem>
                 <MenuItem value="Applied">Applied</MenuItem>
                 <MenuItem value="Phone Screen">Phone Screen</MenuItem>
                 <MenuItem value="Interview">Interview</MenuItem>
