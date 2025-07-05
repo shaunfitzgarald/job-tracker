@@ -11,6 +11,13 @@ import Dashboard from './pages/Dashboard';
 import Applications from './pages/Applications';
 import AddApplication from './pages/AddApplication';
 import EditApplication from './pages/EditApplication';
+import ViewApplication from './pages/ViewApplication';
+import PlannedApplications from './pages/PlannedApplications';
+import Profile from './pages/Profile';
+import UserView from './pages/UserView';
+import ProfileViewer from './pages/ProfileViewer';
+import Analytics from './pages/Analytics';
+import Settings from './pages/Settings';
 
 // Components
 import Layout from './components/Layout';
@@ -79,6 +86,34 @@ function App() {
                 </Layout>
               </ProtectedRoute>
             } />
+            <Route path="/profile-viewer" element={
+              <ProtectedRoute>
+                <Layout>
+                  <ProfileViewer />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/profile-viewer/:userId" element={
+              <ProtectedRoute>
+                <Layout>
+                  <ProfileViewer />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/profile-viewer/public" element={
+              <ProtectedRoute>
+                <Layout>
+                  <ProfileViewer isPublic={true} />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/analytics" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Analytics />
+                </Layout>
+              </ProtectedRoute>
+            } />
             <Route path="/edit-application/:id" element={
               <ProtectedRoute>
                 <Layout>
@@ -86,13 +121,38 @@ function App() {
                 </Layout>
               </ProtectedRoute>
             } />
+            <Route path="/view-application/:id" element={
+              <ProtectedRoute>
+                <Layout>
+                  <ViewApplication />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/planned-applications" element={
+              <ProtectedRoute>
+                <Layout>
+                  <PlannedApplications />
+                </Layout>
+              </ProtectedRoute>
+            } />
             <Route path="/profile" element={
               <ProtectedRoute>
                 <Layout>
-                  <div>
-                    <h2>Profile</h2>
-                    <p>Profile page content will be added here.</p>
-                  </div>
+                  <Profile />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/user-view" element={
+              <ProtectedRoute>
+                <Layout>
+                  <UserView />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/user-view/:userId" element={
+              <ProtectedRoute>
+                <Layout>
+                  <UserView />
                 </Layout>
               </ProtectedRoute>
             } />

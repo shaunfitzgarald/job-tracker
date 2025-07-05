@@ -28,8 +28,13 @@ const EditApplication = () => {
         if (docSnap.exists()) {
           const data = docSnap.data();
           
-          // Check if the application belongs to the current user
-          if (data.userId !== currentUser.uid) {
+          // Check if the application belongs to the current user or if the user has edit permissions
+          const isOwner = data.userId === currentUser.uid;
+          const hasEditPermission = data.sharedWith && 
+            Array.isArray(data.sharedWith) && 
+            data.sharedWith.some(user => user.id === currentUser.uid);
+            
+          if (!isOwner && !hasEditPermission) {
             setError('You do not have permission to edit this application');
             setLoading(false);
             return;

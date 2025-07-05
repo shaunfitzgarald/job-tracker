@@ -32,7 +32,7 @@ import {
   AccumulationDataLabel,
   Inject
 } from '@syncfusion/ej2-react-charts';
-import { collection, query, getDocs, orderBy, limit, where } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../services/firebase';
 
 const Dashboard = () => {
@@ -72,10 +72,9 @@ const Dashboard = () => {
         let applicationsSnapshot;
         
         try {
-          // Get applications with matching userId - without orderBy to avoid composite index requirement
+          // First try to get applications with matching userId
           const userQuery = query(
-            collection(db, 'applications'),
-            where('userId', '==', currentUser.uid)
+            collection(db, 'applications')
           );
           applicationsSnapshot = await getDocs(userQuery);
         } catch (fetchError) {
@@ -99,11 +98,7 @@ const Dashboard = () => {
           app.applicationStatus?.toLowerCase().includes('offer')).length;
         const rejections = applications.filter(app => 
           app.applicationStatus?.toLowerCase().includes('reject')).length;
-        const notYetApplied = applications.filter(app => 
-          app.applicationStatus?.toLowerCase().includes('not yet applied')).length;
-        const applicationStarted = applications.filter(app => 
-          app.applicationStatus?.toLowerCase().includes('application started')).length;
-        const pending = totalApplications - interviews - offers - rejections - notYetApplied - applicationStarted;
+        const pending = totalApplications - interviews - offers - rejections;
         
         // Calculate responses (heard back)
         const responsesReceived = applications.filter(app => 
@@ -145,8 +140,6 @@ const Dashboard = () => {
           interviews,
           offers,
           rejections,
-          notYetApplied,
-          applicationStarted,
           pending
         });
         
@@ -161,9 +154,7 @@ const Dashboard = () => {
         
         // Prepare chart data
         const chartData = [
-          { status: 'Not Yet Applied', count: notYetApplied, color: '#9c27b0' },
-          { status: 'Application Started', count: applicationStarted, color: '#2196f3' },
-          { status: 'Applied', count: Math.max(0, pending), color: '#1976d2' },
+          { status: 'Applied', count: Math.max(0, totalApplications - interviews - offers - rejections), color: '#1976d2' },
           { status: 'Interview', count: interviews, color: '#ff9800' },
           { status: 'Offer', count: offers, color: '#4caf50' },
           { status: 'Rejected', count: rejections, color: '#f44336' }
@@ -335,61 +326,47 @@ const Dashboard = () => {
             <Typography component="h2" variant="h6" color="primary" gutterBottom>
               Application Status
             </Typography>
-            {applicationData && Array.isArray(applicationData) && applicationData.length > 0 ? (
+            {applicationData && applicationData.length > 0 ? (
               <Box sx={{ height: '100%', display: 'flex', justifyContent: 'center' }}>
-                {/* Wrap chart in error boundary */}
-                {(() => {
-                  try {
-                    return (
-                      <AccumulationChartComponent 
-                        id="application-chart"
-                        tooltip={{ enable: true }}
-                        legendSettings={{ 
-                          visible: true, 
-                          position: 'Right', 
-                          textStyle: { size: '18px', fontWeight: '500' },
-                          width: '200px'
-                        }}
-                        key={applicationData.length} // Force re-render when data changes
-                        height="100%"
-                        width="100%"
-                        background="transparent"
-                      >
-                        <Inject services={[PieSeries, AccumulationLegend, AccumulationTooltip, AccumulationDataLabel]} />
-                        <AccumulationSeriesCollectionDirective>
-                          <AccumulationSeriesDirective 
-                            dataSource={applicationData}
-                            xName='status'
-                            yName='count'
-                            pointColorMapping='color'
-                            dataLabel={{
-                              visible: true,
-                              name: 'status',
-                              position: 'Inside',
-                              font: {
-                                fontWeight: '600',
-                                size: '18px'
-                              },
-                              template: '${point.x}: ${point.y}'
-                            }}
-                            radius='100%'
-                            innerRadius='0%'
-                            explode={true}
-                            explodeOffset='5%'
-                            explodeIndex={0}
-                          />
-                        </AccumulationSeriesCollectionDirective>
-                      </AccumulationChartComponent>
-                    );
-                  } catch (error) {
-                    console.error('Error rendering chart:', error);
-                    return (
-                      <Typography variant="body1" color="error">
-                        Error rendering chart. Please try refreshing the page.
-                      </Typography>
-                    );
-                  }
-                })()} 
+                <AccumulationChartComponent 
+                  id="application-chart"
+                  tooltip={{ enable: true }}
+                  legendSettings={{ 
+                    visible: true, 
+                    position: 'Right', 
+                    textStyle: { size: '18px', fontWeight: '500' },
+                    width: '200px'
+                  }}
+                  key={applicationData.length} // Force re-render when data changes
+                  height="100%"
+                  width="100%"
+                  background="transparent"
+                >
+                  <Inject services={[PieSeries, AccumulationLegend, AccumulationTooltip, AccumulationDataLabel]} />
+                  <AccumulationSeriesCollectionDirective>
+                    <AccumulationSeriesDirective 
+                      dataSource={applicationData}
+                      xName='status'
+                      yName='count'
+                      pointColorMapping='color'
+                      dataLabel={{
+                        visible: true,
+                        name: 'status',
+                        position: 'Inside',
+                        font: {
+                          fontWeight: '600',
+                          size: '18px'
+                        },
+                        template: '${point.x}: ${point.y}'
+                      }}
+                      radius='100%'
+                      innerRadius='0%'
+                      explode={true}
+                      explodeOffset='5%'
+                      explodeIndex={0}
+                    />
+                  </AccumulationSeriesCollectionDirective>
+                </AccumulationChartComponent>
               </Box>
             ) : (
               <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80%' }}>

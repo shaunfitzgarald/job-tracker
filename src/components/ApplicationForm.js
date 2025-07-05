@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -18,6 +18,8 @@ import {
 } from '@mui/material';
 import { DatePickerComponent as DatePicker, DateTimePickerComponent as DateTimePicker } from '@syncfusion/ej2-react-calendars';
 import { useAuth } from '../context/AuthContext';
+import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { db } from '../services/firebase';
 
 const ApplicationForm = ({ onSubmit, initialData = null }) => {
   const { currentUser } = useAuth();
@@ -41,11 +43,52 @@ const ApplicationForm = ({ onSubmit, initialData = null }) => {
     contactEmail: '',
     notes: '',
     isPublic: false,
-    userId: currentUser?.uid || ''
+    userId: currentUser?.uid || '',
+    plannedJobId: ''
   });
   
+  const [plannedJobs, setPlannedJobs] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'success' });
+  
+  // Fetch planned jobs when component mounts
+  useEffect(() => {
+    fetchPlannedJobs();
+  }, [currentUser]);
+  
+  // Fetch planned jobs from Firestore
+  const fetchPlannedJobs = async () => {
+    if (!currentUser) return;
+    
+    try {
+      setLoading(true);
+      const plannedJobsRef = collection(db, 'plannedApplications');
+      const q = query(
+        plannedJobsRef, 
+        where('userId', '==', currentUser.uid),
+        where('status', '==', 'planned')
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const jobs = [];
+      
+      querySnapshot.forEach((doc) => {
+        jobs.push({
+          id: doc.id,
+          ...doc.data(),
+          // Convert Firestore timestamps to JS Date objects
+          plannedDate: doc.data().plannedDate?.toDate() || null
+        });
+      });
+      
+      setPlannedJobs(jobs);
+    } catch (err) {
+      console.error('Error fetching planned jobs:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -115,7 +158,6 @@ const ApplicationForm = ({ onSubmit, initialData = null }) => {
           contactEmail: '',
           notes: '',
           isPublic: false,
-          userId: currentUser?.uid || ''
         });
       }
       
@@ -146,8 +188,48 @@ const ApplicationForm = ({ onSubmit, initialData = null }) => {
       
       <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
         <Grid container spacing={2}>
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12}>
+            <FormControl fullWidth>
+              <InputLabel id="planned-job-label">Select from Planned Jobs</InputLabel>
+              <Select
+                labelId="planned-job-label"
+                id="plannedJobId"
+                name="plannedJobId"
+                value={formData.plannedJobId}
+                onChange={(e) => {
+                  const selectedJobId = e.target.value;
+                  if (selectedJobId) {
+                    const selectedJob = plannedJobs.find(job => job.id === selectedJobId);
+                    if (selectedJob) {
+                      setFormData({
+                        ...formData,
+                        plannedJobId: selectedJobId,
+                        companyName: selectedJob.companyName,
+                        jobTitle: selectedJob.jobTitle,
+                        jobPostingUrl: selectedJob.jobUrl || ''
+                      });
+                    }
+                  } else {
+                    handleChange(e);
+                  }
+                }}
+              >
+                <MenuItem value="">
+                  <em>None (Create new application)</em>
+                </MenuItem>
+                {plannedJobs.map((job) => (
+                  <MenuItem key={job.id} value={job.id}>
+                    {job.companyName} - {job.jobTitle}
+                  </MenuItem>
+                ))}
+              </Select>
+              <FormHelperText>Select a planned job or create a new application</FormHelperText>
+            </FormControl>
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
             <TextField
+              required
               fullWidth
               label="Company Name"
               name="companyName"
@@ -155,11 +237,10 @@ const ApplicationForm = ({ onSubmit, initialData = null }) => {
               onChange={handleChange}
               error={!!errors.companyName}
               helperText={errors.companyName}
-              required
             />
           </Grid>
           
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
               <InputLabel>Hiring</InputLabel>
               <Select
