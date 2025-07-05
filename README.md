@@ -1,4 +1,15 @@
-# Getting Started with Create React App
+# Job Application Tracker
+
+A comprehensive job application tracking system built with React, Firebase, Material UI, and Syncfusion components. This application helps users track their job applications, visualize their job search progress, and compete with others in their job search journey.
+
+## Features
+
+- **User Authentication**: Secure login and registration system
+- **Dashboard**: Visual overview of your job application statistics
+- **Application Management**: Add, edit, and track job applications
+- **Analytics**: Detailed insights and competitive metrics
+- **Sharing Controls**: Choose what data to share with the community
+- **Profile Management**: Customize your profile and settings
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 

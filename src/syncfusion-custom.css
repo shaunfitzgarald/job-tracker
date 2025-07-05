@@ -1,0 +1,75 @@
+/* Custom styles for Syncfusion components */
+.e-custom-datepicker,
+.e-custom-datetimepicker {
+  width: 100%;
+  height: 38px;
+}
+
+/* Ensure popup is visible and positioned correctly */
+.e-popup-open {
+  z-index: 10000 !important;
+}
+
+/* Fix for calendar popup visibility */
+.e-calendar {
+  background-color: #fff;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+/* Make sure the input is clickable */
+.e-input-group {
+  width: 100%;
+  cursor: pointer;
+}
+
+/* Ensure the popup container is properly positioned */
+.e-popup {
+  position: fixed !important;
+  z-index: 10000 !important;
+  transform: none !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+/* Fix for popup container positioning */
+.e-datepicker.e-popup-wrapper,
+.e-datetimepicker.e-popup-wrapper {
+  position: fixed !important;
+  z-index: 10000 !important;
+  overflow: visible !important;
+}
+
+/* Ensure calendar content is fully visible */
+.e-calendar-wrapper,
+.e-datetime-wrapper {
+  overflow: visible !important;
+  position: relative !important;
+  z-index: 10000 !important;
+}
+
+/* Fix for month/year view */
+.e-month-view,
+.e-year-view,
+.e-decade-view,
+.e-century-view {
+  position: relative !important;
+  z-index: 10000 !important;
+}
+
+/* Ensure time popup is visible */
+.e-time-container {
+  position: relative !important;
+  z-index: 10000 !important;
+}
+
+/* Fix for popup container */
+.e-control-wrapper {
+  position: relative;
+}
+
+/* Ensure calendar popup appears above all other elements */
+body .e-popup-open.e-popup {
+  z-index: 10000 !important;
+}
