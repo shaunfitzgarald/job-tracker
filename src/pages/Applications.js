@@ -69,38 +69,21 @@ const Applications = () => {
       }
 
       try {
-        // First try to get applications with matching userId
+        // Get applications with matching userId only
         let applicationsData = [];
         
-        try {
-          const userQuery = query(
-            collection(db, 'applications'),
-            where('userId', '==', currentUser.uid)
-          );
-          
-          const userQuerySnapshot = await getDocs(userQuery);
-          applicationsData = userQuerySnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-            applicationDate: doc.data().applicationDate?.toDate?.() || new Date()
-          }));
-        } catch (userQueryError) {
-          console.log('Error fetching by userId, trying alternative query:', userQueryError);
-        }
+        const userQuery = query(
+          collection(db, 'applications'),
+          where('userId', '==', currentUser.uid),
+          orderBy('applicationDate', 'desc')
+        );
         
-        // If no results or error, try getting all applications (for demo/testing)
-        if (applicationsData.length === 0) {
-          const allQuery = query(
-            collection(db, 'applications')
-          );
-          
-          const allQuerySnapshot = await getDocs(allQuery);
-          applicationsData = allQuerySnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-            applicationDate: doc.data().applicationDate?.toDate?.() || new Date()
-          }));
-        }
+        const userQuerySnapshot = await getDocs(userQuery);
+        applicationsData = userQuerySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          applicationDate: doc.data().applicationDate?.toDate?.() || new Date()
+        }));
         
         // Sort applications by date (since we can't use orderBy in the second query)
         applicationsData.sort((a, b) => {
@@ -256,13 +239,14 @@ const Applications = () => {
             </Button>
           </Box>
         ) : (
-          <Box sx={{ height: '70vh', width: '100%' }}>
+          <Box sx={{ width: '100%', overflow: 'visible' }}>
             <GridComponent 
               dataSource={applications}
               allowPaging={true}
               allowSorting={true}
               allowFiltering={true}
               pageSettings={{ pageSize: 10 }}
+              height='auto'
               toolbar={['Search']}
             >
               <ColumnsDirective>

@@ -1,20 +1,122 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow authenticated users to read and write their own application documents
-    match /applications/{applicationId} {
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
     }
     
-    // Allow users to read public applications
-    match /applications/{applicationId} {
-      allow read: if request.auth != null && resource.data.isPublic == true;
+    // Helper function to check if user is accessing their own data
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
     }
     
-    // Default deny
-    match /{document=**} {
-      allow read, write: if false;
+    // Helper function to check if user is an admin
+    function isAdmin() {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // Helper function to check if the target user shares their stats
+    function userSharesStats(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.shareStats == true;
+    }
+    
+    // Helper function to check if user has been granted edit permissions
+    function hasEditPermission() {
+      let app = resource.data;
+      return app.sharedWith != null && 
+        app.sharedWith.size() > 0 && 
+        (
+          // Check if sharedWith is an array of objects with id property
+          app.sharedWith.hasAny([{id: request.auth.uid}]) ||
+          
+          // Check if sharedWith is an array of user IDs
+          app.sharedWith.hasAny([request.auth.uid]) ||
+          
+          // Check if sharedWith contains objects with uid property
+          app.sharedWith.hasAny([{uid: request.auth.uid}])
+        );
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      // Anyone authenticated can read user profiles
+      allow read: if isAuthenticated();
+      
+      // Only the owner or an admin can write to their profile
+      allow write: if isOwner(userId) || isAdmin();
+    }
+    
+    // Applications collection
+    match /applications/{applicationId} {
+      // Read access: owner, admin, if the owner has shareStats=true, or if user has edit permission
+      allow read: if isAuthenticated() && (
+        isOwner(resource.data.userId) || 
+        isAdmin() ||
+        (resource.data.userId != request.auth.uid && userSharesStats(resource.data.userId)) ||
+        hasEditPermission()
+      );
+      
+      // Create: must be authenticated and set userId to their own ID
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      
+      // Update/delete: owner, admin, or user with edit permission
+      allow update, delete: if isAuthenticated() && (
+        isOwner(resource.data.userId) || 
+        isAdmin() ||
+        hasEditPermission()
+      );
+    }
+    
+    // Planned Applications collection
+    match /plannedApplications/{plannedId} {
+      // Read: only owner or admin
+      allow read: if isAuthenticated() && (
+        isOwner(resource.data.userId) || isAdmin()
+      );
+      
+      // Create: must be authenticated and set userId to their own ID
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      
+      // Update/delete: only owner or admin
+      allow update, delete: if isAuthenticated() && (
+        isOwner(resource.data.userId) || isAdmin()
+      );
+    }
+    
+    // User Settings collection
+    match /userSettings/{settingId} {
+      // Read: only owner or admin
+      allow read: if isAuthenticated() && (
+        isOwner(resource.data.userId) || isAdmin()
+      );
+      
+      // Create: must be authenticated and set userId to their own ID
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      
+      // Update/delete: only owner or admin
+      allow update, delete: if isAuthenticated() && (
+        isOwner(resource.data.userId) || isAdmin()
+      );
+    }
+    
+    // Application History collection
+    match /applicationHistory/{historyId} {
+      // Read: owner, admin, or if the owner has shareStats=true
+      allow read: if isAuthenticated() && (
+        isOwner(resource.data.userId) || 
+        isAdmin() ||
+        (resource.data.userId != request.auth.uid && userSharesStats(resource.data.userId))
+      );
+      
+      // Create: must be authenticated and set userId to their own ID
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      
+      // Update/delete: only owner or admin
+      allow update, delete: if isAuthenticated() && (
+        isOwner(resource.data.userId) || isAdmin()
+      );
     }
   }
 }
