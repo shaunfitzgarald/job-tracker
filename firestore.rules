@@ -58,6 +58,9 @@ service cloud.firestore {
         hasEditPermission()
       );
       
+      // Allow list operations for analytics
+      allow list: if isAuthenticated();
+      
       // Create: must be authenticated and set userId to their own ID
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       

@@ -82,6 +82,7 @@ const Analytics = () => {
     const fetchData = async () => {
       if (!currentUser) {
         setLoading(false);
+        setError('Please log in to view analytics data.');
         return;
       }
 
@@ -114,18 +115,23 @@ const Analytics = () => {
         const { startDate } = getDateRange();
         
         // Fetch user's applications
+        // Remove orderBy to avoid requiring composite index
         const userAppsQuery = query(
           collection(db, 'applications'),
-          where('userId', '==', currentUser.uid),
-          where('applicationDate', '>=', startDate),
-          orderBy('applicationDate', 'desc')
+          where('userId', '==', currentUser.uid)
         );
         
         const userAppsSnapshot = await getDocs(userAppsQuery);
-        const userApps = userAppsSnapshot.docs.map(doc => ({
+        let userApps = userAppsSnapshot.docs.map(doc => ({
           id: doc.id,
-          ...doc.data()
+          ...doc.data(),
+          applicationDate: doc.data().applicationDate?.toDate?.() || new Date(doc.data().applicationDate) || new Date()
         }));
+        
+        // Filter by date and sort in memory instead of using Firestore orderBy
+        userApps = userApps
+          .filter(app => app.applicationDate >= startDate)
+          .sort((a, b) => b.applicationDate - a.applicationDate);
         
         // Calculate user stats
         const interviews = userApps.filter(app => 
@@ -154,11 +160,10 @@ const Analytics = () => {
         });
         
         // Fetch public applications for community stats
+        // Remove orderBy to avoid requiring composite index
         const publicAppsQuery = query(
           collection(db, 'applications'),
-          where('isPublic', '==', true),
-          where('applicationDate', '>=', startDate),
-          orderBy('applicationDate', 'desc')
+          where('isPublic', '==', true)
         );
         
         const publicAppsSnapshot = await getDocs(publicAppsQuery);
