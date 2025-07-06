@@ -240,15 +240,17 @@ const Applications = () => {
           </Box>
         ) : (
           <Box sx={{ width: '100%', overflow: 'visible' }}>
-            <GridComponent 
-              dataSource={applications}
-              allowPaging={true}
-              allowSorting={true}
-              allowFiltering={true}
-              pageSettings={{ pageSize: 10 }}
-              height='auto'
-              toolbar={['Search']}
-            >
+            {/* Only render the grid if applications array is valid and not empty */}
+            {Array.isArray(applications) && applications.length > 0 ? (
+              <GridComponent 
+                dataSource={applications}
+                allowPaging={true}
+                allowSorting={true}
+                allowFiltering={true}
+                pageSettings={{ pageSize: 10 }}
+                height='auto'
+                toolbar={['Search']}
+              >
               <ColumnsDirective>
                 <ColumnDirective field='companyName' headerText='Company' width='150' />
                 <ColumnDirective field='jobTitle' headerText='Position' width='200' />
@@ -259,6 +261,11 @@ const Applications = () => {
               </ColumnsDirective>
               <Inject services={[Page, Sort, Filter, Group, SyncSearch, Toolbar]} />
             </GridComponent>
+            ) : (
+              <Typography variant="body1" color="text.secondary" sx={{ p: 2 }}>
+                Unable to display applications. Please try refreshing the page.
+              </Typography>
+            ) }
           </Box>
         )}
       </Paper>

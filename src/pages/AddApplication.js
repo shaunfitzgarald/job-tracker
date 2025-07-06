@@ -1,22 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Container, Typography, Box, Snackbar, Alert } from '@mui/material';
 import ApplicationForm from '../components/ApplicationForm';
 import { collection, addDoc, setDoc, doc } from 'firebase/firestore';
 import { db } from '../services/firebase';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const AddApplication = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentUser } = useAuth();
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'success' });
+  const [targetUserId, setTargetUserId] = useState(null);
+  
+  // Extract userId from query parameters if present
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const userIdParam = queryParams.get('userId');
+    if (userIdParam) {
+      setTargetUserId(userIdParam);
+    }
+  }, [location]);
 
   const handleSubmit = async (formData) => {
     try {
       // Add timestamp and ensure userId is set
+      // If targetUserId is set (from query param), use it instead of current user's ID
       const applicationData = {
         ...formData,
-        userId: currentUser?.uid || formData.userId || 'anonymous',
+        userId: targetUserId || currentUser?.uid || formData.userId || 'anonymous',
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -39,7 +51,7 @@ const AddApplication = () => {
         
         // If permission error, try using setDoc with a specific document ID
         // This is a workaround for demo projects with restrictive security rules
-        const docId = `app_${Date.now()}_${currentUser?.uid || 'anonymous'}`;
+        const docId = `app_${Date.now()}_${targetUserId || currentUser?.uid || 'anonymous'}`;
         await setDoc(doc(db, 'applications', docId), applicationData);
         
         setNotification({
@@ -69,14 +81,16 @@ const AddApplication = () => {
     <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" gutterBottom>
-          Add New Job Application
+          Add New Job Application {targetUserId && targetUserId !== currentUser?.uid ? '(For Another User)' : ''}
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Track your job applications and keep all the details in one place.
+          {targetUserId && targetUserId !== currentUser?.uid 
+            ? 'Adding an application for another user. This will be saved to their account.'
+            : 'Track your job applications and keep all the details in one place.'}
         </Typography>
       </Box>
       
-      <ApplicationForm onSubmit={handleSubmit} />
+      <ApplicationForm onSubmit={handleSubmit} initialData={targetUserId ? { userId: targetUserId } : null} />
       
       <Snackbar 
         open={notification.open} 
