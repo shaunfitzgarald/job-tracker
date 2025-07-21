@@ -44,7 +44,7 @@ import {
   Save
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   collection, 
   query, 
@@ -61,7 +61,11 @@ import { db } from '../services/firebase';
 import { DatePickerComponent } from '@syncfusion/ej2-react-calendars';
 
 const PlannedApplications = () => {
+  const location = useLocation();
+  const [targetUserId, setTargetUserId] = useState(null);
   const { currentUser } = useAuth();
+  // Determine which user's data we are acting on
+  const uidRef = targetUserId || currentUser?.uid;
   const navigate = useNavigate();
   const [plannedJobs, setPlannedJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -88,13 +92,14 @@ const PlannedApplications = () => {
   });
 
   useEffect(() => {
-    fetchPlannedJobs();
-    fetchUserSettings();
-    fetchApplicationHistory();
-  }, [currentUser]);
+    // Get ?userId= from query params if present
+    const queryParams = new URLSearchParams(location.search);
+    const userIdParam = queryParams.get('userId');
+    if (userIdParam) setTargetUserId(userIdParam);
+  }, [currentUser, location]);
 
   const fetchPlannedJobs = async () => {
-    if (!currentUser) return;
+    if (!currentUser && !targetUserId) return;
 
     try {
       setLoading(true);
@@ -102,7 +107,7 @@ const PlannedApplications = () => {
       // Remove orderBy to avoid composite index requirement
       const q = query(
         plannedJobsRef, 
-        where('userId', '==', currentUser.uid)
+        where('userId', '==', targetUserId || currentUser.uid)
       );
       
       const querySnapshot = await getDocs(q);
@@ -135,11 +140,11 @@ const PlannedApplications = () => {
   };
 
   const fetchUserSettings = async () => {
-    if (!currentUser) return;
+    if (!currentUser && !targetUserId) return;
 
     try {
       const settingsRef = collection(db, 'userSettings');
-      const q = query(settingsRef, where('userId', '==', currentUser.uid));
+      const q = query(settingsRef, where('userId', '==', uidRef));
       const querySnapshot = await getDocs(q);
       
       if (!querySnapshot.empty) {
@@ -154,17 +159,17 @@ const PlannedApplications = () => {
   };
 
   const saveUserSettings = async (newDailyGoal) => {
-    if (!currentUser) return;
+    if (!currentUser && !targetUserId) return;
 
     try {
       const settingsRef = collection(db, 'userSettings');
-      const q = query(settingsRef, where('userId', '==', currentUser.uid));
+      const q = query(settingsRef, where('userId', '==', uidRef));
       const querySnapshot = await getDocs(q);
       
       if (querySnapshot.empty) {
         // Create new settings document
         await addDoc(settingsRef, {
-          userId: currentUser.uid,
+          userId: targetUserId || currentUser.uid,
           dailyApplicationGoal: newDailyGoal,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
@@ -246,13 +251,13 @@ const PlannedApplications = () => {
   
   // Fetch application history
   const fetchApplicationHistory = async () => {
-    if (!currentUser) return;
+    if (!currentUser && !targetUserId) return;
     
     try {
       const plannedJobsRef = collection(db, 'plannedApplications');
       const q = query(
         plannedJobsRef, 
-        where('userId', '==', currentUser.uid),
+        where('userId', '==', targetUserId || currentUser.uid),
         where('status', '==', 'applied'),
         orderBy('appliedDate', 'desc')
       );
@@ -301,6 +306,15 @@ const PlannedApplications = () => {
         setAverageApplications(totalApplied / historyArray.length);
       }
       
+      setTimeout(() => {
+        if (targetUserId && targetUserId !== currentUser?.uid) {
+          // If planning for another user, go back to their view
+          navigate(`/user-view/${targetUserId}`);
+        } else {
+          // Otherwise go to applications list
+          navigate('/applications');
+        }
+      }, 1500);
     } catch (err) {
       console.error('Error fetching application history:', err);
     }
@@ -322,7 +336,8 @@ const PlannedApplications = () => {
 
     try {
       const plannedJobData = {
-        userId: currentUser.uid,
+        userId: targetUserId || currentUser.uid,
+        createdBy: currentUser?.uid || 'anonymous', // Track who created the planned application
         companyName: formData.companyName,
         jobTitle: formData.jobTitle,
         jobUrl: formData.jobUrl,

@@ -16,6 +16,7 @@ import PlannedApplications from './pages/PlannedApplications';
 import Profile from './pages/Profile';
 import UserView from './pages/UserView';
 import ProfileViewer from './pages/ProfileViewer';
+import ResumeViewer from './pages/ResumeViewer';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 
@@ -163,6 +164,20 @@ function App() {
                     <h2>Settings</h2>
                     <p>Settings page content will be added here.</p>
                   </div>
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/resumes" element={
+              <ProtectedRoute>
+                <Layout>
+                  <ResumeViewer />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/resumes/:userId" element={
+              <ProtectedRoute>
+                <Layout>
+                  <ResumeViewer />
                 </Layout>
               </ProtectedRoute>
             } />

@@ -250,6 +250,7 @@ const Applications = () => {
                 pageSettings={{ pageSize: 10 }}
                 height='auto'
                 toolbar={['Search']}
+                key={applications.length} // Add a key to force re-render when data changes
               >
               <ColumnsDirective>
                 <ColumnDirective field='companyName' headerText='Company' width='150' />

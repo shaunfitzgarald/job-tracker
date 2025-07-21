@@ -30,8 +30,11 @@ const AddApplication = () => {
         ...formData,
         userId: targetUserId || currentUser?.uid || formData.userId || 'anonymous',
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        createdBy: currentUser?.uid || 'anonymous' // Track who created the application
       };
+      
+      console.log('Creating application with userId:', applicationData.userId);
       
       // Try to save to Firestore with better error handling
       try {
@@ -44,8 +47,16 @@ const AddApplication = () => {
           severity: 'success'
         });
         
-        // Redirect to applications list after a short delay
-        setTimeout(() => navigate('/applications'), 1500);
+        // Redirect based on where the application was created from
+        setTimeout(() => {
+          if (targetUserId && targetUserId !== currentUser?.uid) {
+            // If adding for another user, go back to their view
+            navigate(`/user-view/${targetUserId}`);
+          } else {
+            // Otherwise go to applications list
+            navigate('/applications');
+          }
+        }, 1500);
       } catch (firestoreError) {
         console.error('Error with addDoc, trying alternative method:', firestoreError);
         
@@ -60,8 +71,16 @@ const AddApplication = () => {
           severity: 'success'
         });
         
-        // Redirect to applications list after a short delay
-        setTimeout(() => navigate('/applications'), 1500);
+        // Redirect based on where the application was created from
+        setTimeout(() => {
+          if (targetUserId && targetUserId !== currentUser?.uid) {
+            // If adding for another user, go back to their view
+            navigate(`/user-view/${targetUserId}`);
+          } else {
+            // Otherwise go to applications list
+            navigate('/applications');
+          }
+        }, 1500);
       }
     } catch (error) {
       console.error('Error adding application:', error);
