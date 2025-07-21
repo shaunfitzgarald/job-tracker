@@ -28,7 +28,8 @@ import {
   Logout, 
   Settings,
   BarChart,
-  CalendarToday
+  CalendarToday,
+  Description
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -73,8 +74,8 @@ const Layout = ({ children }) => {
     { text: 'Planned Applications', icon: <CalendarToday />, path: '/planned-applications' },
     { text: 'View Others', icon: <Person />, path: '/user-view' },
     { text: 'Analytics', icon: <BarChart />, path: '/analytics' },
-    { text: 'My Profile', icon: <Person />, path: '/profile-viewer' },
-    { text: 'Resume Viewer', icon: <Person />, path: '/profile-viewer/public' }
+    { text: 'My Profile', icon: <Person />, path: '/profile' },
+    { text: 'Resume Viewer', icon: <Description />, path: '/resumes' }
   ];
 
   const drawer = (

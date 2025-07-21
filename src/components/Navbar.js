@@ -15,7 +15,8 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
-  Divider
+  Divider,
+  Avatar
 } from '@mui/material';
 import { 
   Menu as MenuIcon, 
@@ -24,7 +25,8 @@ import {
   Add, 
   Person, 
   Settings, 
-  Logout 
+  Logout,
+  Description 
 } from '@mui/icons-material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -63,6 +65,7 @@ const Navbar = () => {
     { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
     { text: 'Applications', icon: <Work />, path: '/applications' },
     { text: 'Add Application', icon: <Add />, path: '/add-application' },
+    { text: 'Resumes', icon: <Description />, path: '/resumes' },
   ];
   
   const accountItems = [
@@ -164,7 +167,15 @@ const Navbar = () => {
                     onClick={handleMenu}
                     color="inherit"
                   >
-                    <Person />
+                    {currentUser?.photoURL ? (
+                      <Avatar 
+                        src={currentUser.photoURL} 
+                        alt={currentUser.displayName || 'User'}
+                        sx={{ width: 32, height: 32 }}
+                      />
+                    ) : (
+                      <Person />
+                    )}
                   </IconButton>
                   <Menu
                     id="menu-appbar"

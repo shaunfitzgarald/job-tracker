@@ -16,9 +16,13 @@ import {
   IconButton,
   Tooltip,
   Chip,
-  Link,
+  Link as MuiLink,
   Card,
-  CardContent
+  CardContent,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
 import {
   CloudUpload,
@@ -26,13 +30,15 @@ import {
   Delete,
   Description,
   Download,
-  PhotoCamera
+  PhotoCamera,
+  Visibility
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { updateProfile } from 'firebase/auth';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { db, storage } from '../services/firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { Link } from 'react-router-dom';
 
 const Profile = () => {
   const { currentUser } = useAuth();
@@ -50,13 +56,17 @@ const Profile = () => {
     title: '',
     shareStats: false,
     photoURL: '',
-    resumeURL: '',
-    resumeName: ''
+    resumes: []
   });
   
   // Refs for file inputs
   const photoInputRef = useRef(null);
   const resumeInputRef = useRef(null);
+  
+  // State for resume upload dialog
+  const [resumeDialogOpen, setResumeDialogOpen] = useState(false);
+  const [resumeTitle, setResumeTitle] = useState('');
+  const [selectedResumeFile, setSelectedResumeFile] = useState(null);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -80,8 +90,7 @@ const Profile = () => {
             title: userData.title || '',
             shareStats: userData.shareStats || false,
             photoURL: currentUser.photoURL || userData.photoURL || '',
-            resumeURL: userData.resumeURL || '',
-            resumeName: userData.resumeName || ''
+            resumes: userData.resumes || []
           });
         } else {
           // If no profile exists yet, initialize with auth data
@@ -93,8 +102,7 @@ const Profile = () => {
             title: '',
             shareStats: false,
             photoURL: currentUser.photoURL || '',
-            resumeURL: '',
-            resumeName: ''
+            resumes: []
           });
         }
       } catch (error) {
@@ -166,8 +174,8 @@ const Profile = () => {
     }
   };
   
-  // Handle resume upload
-  const handleResumeUpload = async (e) => {
+  // Handle resume file selection
+  const handleResumeFileSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     
@@ -183,34 +191,80 @@ const Profile = () => {
       return;
     }
     
+    setSelectedResumeFile(file);
+    setResumeDialogOpen(true);
+  };
+  
+  // Handle resume upload with title
+  const handleResumeUpload = async () => {
+    if (!selectedResumeFile || !resumeTitle.trim()) {
+      setError('Please provide a title for your resume');
+      return;
+    }
+    
     setUploadingResume(true);
     setError('');
     
     try {
+      const timestamp = Date.now();
+      const fileName = `${timestamp}_${selectedResumeFile.name}`;
+      
       // Create a reference to the storage location
-      const storageRef = ref(storage, `resumes/${currentUser.uid}/${file.name}`);
+      const storageRef = ref(storage, `resumes/${currentUser.uid}/${fileName}`);
       
       // Upload the file
-      await uploadBytes(storageRef, file);
+      await uploadBytes(storageRef, selectedResumeFile);
       
       // Get the download URL
-      const resumeURL = await getDownloadURL(storageRef);
+      const downloadURL = await getDownloadURL(storageRef);
+      
+      // Create a plain JavaScript object for the new resume
+      // Avoid using Date objects which can cause issues with Firestore serialization
+      const newResume = {
+        id: timestamp.toString(),
+        title: resumeTitle,
+        fileName: selectedResumeFile.name,
+        storedFileName: fileName,
+        url: downloadURL,
+        uploadedAt: timestamp
+      };
       
       // Update user profile in Firestore
       const userDocRef = doc(db, 'users', currentUser.uid);
-      await updateDoc(userDocRef, { 
-        resumeURL,
-        resumeName: file.name
-      });
+      
+      // Ensure resumes array exists and is an array
+      const currentResumes = Array.isArray(userProfile.resumes) ? userProfile.resumes : [];
+      const updatedResumes = [...currentResumes, newResume];
+      
+      // Check if user document exists first
+      const userDoc = await getDoc(userDocRef);
+      if (userDoc.exists()) {
+        await updateDoc(userDocRef, { resumes: updatedResumes });
+      } else {
+        // Create the document if it doesn't exist
+        await setDoc(userDocRef, { 
+          displayName: currentUser.displayName || '',
+          email: currentUser.email || '',
+          photoURL: currentUser.photoURL || '',
+          resumes: updatedResumes
+        });
+      }
       
       // Update local state
       setUserProfile(prev => ({ 
         ...prev, 
-        resumeURL,
-        resumeName: file.name
+        resumes: updatedResumes
       }));
       
       setSuccess('Resume uploaded successfully');
+      setResumeDialogOpen(false);
+      setResumeTitle('');
+      setSelectedResumeFile(null);
+      
+      // Force reload the page after a short delay to ensure fresh data
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     } catch (error) {
       console.error('Error uploading resume:', error);
       setError('Failed to upload resume');
@@ -220,31 +274,27 @@ const Profile = () => {
   };
   
   // Handle resume deletion
-  const handleResumeDelete = async () => {
-    if (!userProfile.resumeURL) return;
-    
+  const handleResumeDelete = async (resumeId, storedFileName) => {
     setUploadingResume(true);
     setError('');
     
     try {
       // Create a reference to the storage location
-      const storageRef = ref(storage, `resumes/${currentUser.uid}/${userProfile.resumeName}`);
+      const storageRef = ref(storage, `resumes/${currentUser.uid}/${storedFileName}`);
       
       // Delete the file
       await deleteObject(storageRef);
       
       // Update user profile in Firestore
       const userDocRef = doc(db, 'users', currentUser.uid);
-      await updateDoc(userDocRef, { 
-        resumeURL: '',
-        resumeName: ''
-      });
+      const updatedResumes = userProfile.resumes.filter(resume => resume.id !== resumeId);
+      
+      await updateDoc(userDocRef, { resumes: updatedResumes });
       
       // Update local state
       setUserProfile(prev => ({ 
         ...prev, 
-        resumeURL: '',
-        resumeName: ''
+        resumes: updatedResumes
       }));
       
       setSuccess('Resume deleted successfully');
@@ -388,65 +438,121 @@ const Profile = () => {
         
         {/* Resume Upload Section */}
         <Box sx={{ mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Resume
-          </Typography>
-          
-          {userProfile.resumeURL ? (
-            <Card variant="outlined" sx={{ mb: 2 }}>
-              <CardContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Description color="primary" sx={{ mr: 1 }} />
-                  <Typography variant="body2" sx={{ mr: 2 }}>
-                    {userProfile.resumeName}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Tooltip title="Download Resume">
-                    <IconButton 
-                      component={Link} 
-                      href={userProfile.resumeURL} 
-                      target="_blank" 
-                      rel="noopener"
-                      download
-                    >
-                      <Download />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Delete Resume">
-                    <IconButton 
-                      color="error" 
-                      onClick={handleResumeDelete}
-                      disabled={uploadingResume}
-                    >
-                      {uploadingResume ? <CircularProgress size={24} /> : <Delete />}
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-              </CardContent>
-            </Card>
-          ) : (
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <input
-                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                type="file"
-                style={{ display: 'none' }}
-                ref={resumeInputRef}
-                onChange={handleResumeUpload}
-              />
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Resumes</span>
+            <Box>
               <Button
                 variant="outlined"
-                startIcon={uploadingResume ? <CircularProgress size={20} /> : <CloudUpload />}
+                size="small"
+                startIcon={<Visibility />}
+                component={Link}
+                to="/resumes"
+                sx={{ mr: 1 }}
+              >
+                View All
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<CloudUpload />}
                 onClick={() => resumeInputRef.current.click()}
                 disabled={uploadingResume}
               >
-                Upload Resume
+                Add Resume
               </Button>
-              <Typography variant="caption" color="text.secondary" sx={{ ml: 2 }}>
-                Accepted formats: PDF, DOC, DOCX (max 10MB)
-              </Typography>
             </Box>
+          </Typography>
+          
+          <input
+            accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            type="file"
+            style={{ display: 'none' }}
+            ref={resumeInputRef}
+            onChange={handleResumeFileSelect}
+          />
+          
+          {userProfile.resumes.length > 0 ? (
+            <Box>
+              {userProfile.resumes.map(resume => (
+                <Card key={resume.id} variant="outlined" sx={{ mb: 2 }}>
+                  <CardContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+                      <Description color="primary" sx={{ mr: 1 }} />
+                      <Box>
+                        <Typography variant="subtitle2">
+                          {resume.title}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {resume.fileName}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Box>
+                      <Tooltip title="Download Resume">
+                        <IconButton 
+                          component={MuiLink} 
+                          href={resume.url} 
+                          target="_blank" 
+                          rel="noopener"
+                          download
+                        >
+                          <Download />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete Resume">
+                        <IconButton 
+                          color="error" 
+                          onClick={() => handleResumeDelete(resume.id, resume.storedFileName)}
+                          disabled={uploadingResume}
+                        >
+                          {uploadingResume ? <CircularProgress size={24} /> : <Delete />}
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </CardContent>
+                </Card>
+              ))}
+            </Box>
+          ) : (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              You haven't uploaded any resumes yet. Add different resumes for different job types!
+            </Typography>
           )}
+          
+          {/* Resume Upload Dialog */}
+          <Dialog open={resumeDialogOpen} onClose={() => !uploadingResume && setResumeDialogOpen(false)}>
+            <DialogTitle>Add Resume</DialogTitle>
+            <DialogContent>
+              <TextField
+                autoFocus
+                margin="dense"
+                label="Resume Title"
+                fullWidth
+                variant="outlined"
+                value={resumeTitle}
+                onChange={(e) => setResumeTitle(e.target.value)}
+                placeholder="e.g., Software Engineer Resume, Marketing Resume"
+                helperText="Give your resume a descriptive title"
+                sx={{ mb: 2, mt: 1 }}
+              />
+              {selectedResumeFile && (
+                <Typography variant="body2">
+                  Selected file: {selectedResumeFile.name}
+                </Typography>
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setResumeDialogOpen(false)} disabled={uploadingResume}>Cancel</Button>
+              <Button 
+                onClick={handleResumeUpload} 
+                variant="contained" 
+                disabled={uploadingResume || !resumeTitle.trim()}
+              >
+                {uploadingResume ? <CircularProgress size={24} sx={{ mr: 1 }} /> : null}
+                Upload
+              </Button>
+            </DialogActions>
+          </Dialog>
         </Box>
         
         <Divider sx={{ mb: 3 }} />
